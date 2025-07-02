@@ -155,7 +155,8 @@
             top: 0;
             left: 0;
             right: 0;
-            padding: 20px;
+            padding: 20px 20px 20px 20px;
+            padding-top: 60px;
             display: flex;
             justify-content: space-between;
             pointer-events: none;
@@ -211,7 +212,7 @@
         
         #controls {
             position: absolute;
-            top: 120px;
+            top: 160px;
             left: 50%;
             transform: translateX(-50%);
             color: white;
@@ -454,13 +455,13 @@
         
         <div id="comboDisplay">COMBO x0</div>
         
+        <button id="soundToggle" class="controlBtn" data-en-on="Sound: ON" data-en-off="Sound: OFF" data-zh-on="音效：开启" data-zh-off="音效：关闭">Sound: ON</button>
+        <button id="langToggle" class="controlBtn">中文</button>
+        
         <div id="controls">
             <div class="controlGroup"><strong data-en="Player 1:" data-zh="玩家1:">Player 1:</strong> <span data-en="WASD Move, G Punch, H Kick, J Special" data-zh="WASD移动，G拳击，H踢腿，J特殊技">WASD Move, G Punch, H Kick, J Special</span></div>
             <div class="controlGroup"><strong data-en="Player 2:" data-zh="玩家2:">Player 2:</strong> <span data-en="Arrow Keys Move, Numpad 1 Punch, 2 Kick, 3 Special" data-zh="方向键移动，小键盘1拳击，2踢腿，3特殊技">Arrow Keys Move, Numpad 1 Punch, 2 Kick, 3 Special</span></div>
         </div>
-        
-        <button id="soundToggle" class="controlBtn" data-en-on="Sound: ON" data-en-off="Sound: OFF" data-zh-on="音效：开启" data-zh-off="音效：关闭">Sound: ON</button>
-        <button id="langToggle" class="controlBtn">中文</button>
         
         <div id="winScreen">
             <div id="winText" data-en-win=" Wins!" data-zh-win=" 胜利！">Player 1 Wins!</div>
