@@ -2,7 +2,7 @@
 
 A crazy cool stickman fighting game with bilingual support! 一个狂拽酷炫的双人火柴人格斗游戏，支持中英文切换！
 
-[Play Online / 在线游玩](https://yourusername.github.io/stickman-fighter-game/)
+[Play Online / 在线游玩](https://oxcod.github.io/stickman-fighter-game/)
 
 ## Features / 特色
 
@@ -56,7 +56,7 @@ Works best on modern browsers / 在现代浏览器上效果最佳:
 
 1. Clone the repository / 克隆仓库:
    ```bash
-   git clone https://github.com/yourusername/stickman-fighter-game.git
+   git clone https://github.com/oxcod/stickman-fighter-game.git
    ```
 
 2. Open `index.html` in your browser / 在浏览器中打开 `index.html`
