@@ -1,8 +1,16 @@
 # Stickman Fighter / 火柴人格斗大师
 
-A crazy cool stickman fighting game with bilingual support! 一个狂拽酷炫的双人火柴人格斗游戏，支持中英文切换！
+A crazy cool stickman fighting game with bilingual support and cross-platform play! 
+一个狂拽酷炫的火柴人格斗游戏，支持中英文切换和跨平台游玩！
 
 [Play Online / 在线游玩](https://oxcod.github.io/stickman-fighter-game/)
+
+## Version 2.0 Update / 2.0版本更新
+
+- **Auto-detect device type / 自动检测设备类型**
+- **Mobile version with AI opponent / 移动版本带AI对手**
+- **Touch controls for mobile / 移动端触摸控制**
+- **Responsive design / 响应式设计**
 
 ## Features / 特色
 
@@ -15,17 +23,26 @@ A crazy cool stickman fighting game with bilingual support! 一个狂拽酷炫�
 
 ## How to Play / 如何游戏
 
-### Player 1 (Red) / 玩家1（红色）
+### Desktop Version (2 Players) / 桌面版（双人对战）
+
+#### Player 1 (Red) / 玩家1（红色）
 - **Move / 移动**: W A S D
 - **Punch / 拳击**: G
 - **Kick / 踢腿**: H
 - **Special Attack / 特殊技**: J
 
-### Player 2 (Blue) / 玩家2（蓝色）
+#### Player 2 (Blue) / 玩家2（蓝色）
 - **Move / 移动**: Arrow Keys / 方向键
 - **Punch / 拳击**: Numpad 1 / 小键盘1
 - **Kick / 踢腿**: Numpad 2 / 小键盘2
 - **Special Attack / 特殊技**: Numpad 3 / 小键盘3
+
+### Mobile Version (vs AI) / 移动版（对战AI）
+- **Move / 移动**: Left/Right buttons / 左右按钮
+- **Jump / 跳跃**: Up button / 向上按钮
+- **Punch / 拳击**: PUNCH button / 拳击按钮
+- **Kick / 踢腿**: KICK button / 踢腿按钮
+- **Special / 特殊技**: SPECIAL button / 特殊技按钮
 
 ## Game Mechanics / 游戏机制
 
@@ -40,10 +57,12 @@ A crazy cool stickman fighting game with bilingual support! 一个狂拽酷炫�
 
 ## Files / 文件说明
 
-- `index.html` - Main game file with bilingual support / 主游戏文件，支持双语
-- `stickman-fighter-original.html` - Original version (may have performance issues) / 原始版本（可能有性能问题）
-- `stickman-fighter-fixed.html` - Stable version without advanced effects / 稳定版本，无高级特效
-- `stickman-fighter-final.html` - Final optimized version (Chinese only) / 最终优化版本（仅中文）
+- `index.html` - Auto-detect and redirect based on device / 自动检测设备并跳转
+- `index-mobile.html` - Mobile version with AI opponent / 移动版本，带AI对手
+- `stickman-fighter-v1.0.html` - Desktop multiplayer version / 桌面双人对战版本
+- `stickman-fighter-original.html` - Original version / 原始版本
+- `stickman-fighter-fixed.html` - Stable version / 稳定版本
+- `stickman-fighter-final.html` - Final v1 version / 最终v1版本
 
 ## Browser Support / 浏览器支持
 
