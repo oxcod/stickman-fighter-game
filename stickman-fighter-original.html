@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>火柴人格斗大师</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 1200px;
+            height: 600px;
+            border: 3px solid #444;
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.5);
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(to bottom, #2a2a3a 0%, #1a1a2a 100%);
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+        
+        .healthBar {
+            width: 400px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #fff;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .healthFill {
+            height: 100%;
+            background: linear-gradient(to right, #ff3333, #ff6666);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+        }
+        
+        .playerName {
+            position: absolute;
+            top: -25px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        
+        #player2UI {
+            text-align: right;
+        }
+        
+        #player2UI .playerName {
+            right: 0;
+        }
+        
+        #comboDisplay {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffff00;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.9);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        
+        .controlGroup {
+            margin: 5px 0;
+        }
+        
+        #winScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        #winText {
+            font-size: 72px;
+            color: #ffff00;
+            text-shadow: 4px 4px 8px rgba(255, 0, 0, 0.8);
+            margin-bottom: 30px;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        #restartBtn {
+            padding: 15px 40px;
+            font-size: 24px;
+            background: linear-gradient(to bottom, #ff6666, #ff3333);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(255, 0, 0, 0.5);
+            transition: transform 0.2s;
+        }
+        
+        #restartBtn:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1200" height="600"></canvas>
+        
+        <div id="ui">
+            <div id="player1UI">
+                <div class="playerName">玩家 1</div>
+                <div class="healthBar">
+                    <div id="player1Health" class="healthFill" style="width: 100%"></div>
+                </div>
+            </div>
+            
+            <div id="player2UI">
+                <div class="playerName">玩家 2</div>
+                <div class="healthBar">
+                    <div id="player2Health" class="healthFill" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="comboDisplay">COMBO x0</div>
+        
+        <div id="controls">
+            <div class="controlGroup"><strong>玩家1:</strong> WASD移动，G拳击，H踢腿，J特殊技</div>
+            <div class="controlGroup"><strong>玩家2:</strong> 方向键移动，小键盘1拳击，2踢腿，3特殊技</div>
+        </div>
+        
+        <div id="winScreen">
+            <div id="winText">玩家 1 胜利！</div>
+            <button id="restartBtn">再来一局</button>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 音效管理器
+        class SoundManager {
+            constructor() {
+                this.sounds = {};
+                this.enabled = true;
+                this.volume = 0.5;
+                this.bgmStopped = false;
+                this.bgmTimeout = null;
+                
+                // 创建音效
+                this.createSounds();
+            }
+            
+            createSounds() {
+                // 创建音频上下文
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // 定义音效
+                this.soundDefs = {
+                    punch: { frequency: 200, duration: 0.1, type: 'square' },
+                    kick: { frequency: 150, duration: 0.15, type: 'sawtooth' },
+                    special: { frequency: 100, duration: 0.3, type: 'sine' },
+                    hit: { frequency: 300, duration: 0.05, type: 'square' },
+                    combo: { frequency: 800, duration: 0.2, type: 'sine' },
+                    victory: { frequency: 600, duration: 0.5, type: 'triangle' },
+                    bgm: { frequency: 110, duration: 2, type: 'sine' }
+                };
+            }
+            
+            playSound(soundName) {
+                if (!this.enabled || !this.soundDefs[soundName]) return;
+                
+                const sound = this.soundDefs[soundName];
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                oscillator.type = sound.type;
+                oscillator.frequency.setValueAtTime(sound.frequency, this.audioContext.currentTime);
+                
+                // 设置音量包络
+                gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(this.volume, this.audioContext.currentTime + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + sound.duration);
+                
+                // 特殊音效处理
+                if (soundName === 'special') {
+                    // 频率扫描效果
+                    oscillator.frequency.linearRampToValueAtTime(sound.frequency * 4, this.audioContext.currentTime + sound.duration);
+                } else if (soundName === 'combo') {
+                    // 上升音调
+                    oscillator.frequency.linearRampToValueAtTime(sound.frequency * 1.5, this.audioContext.currentTime + sound.duration);
+                } else if (soundName === 'victory') {
+                    // 胜利和弦
+                    const osc2 = this.audioContext.createOscillator();
+                    const osc3 = this.audioContext.createOscillator();
+                    osc2.connect(gainNode);
+                    osc3.connect(gainNode);
+                    osc2.frequency.setValueAtTime(sound.frequency * 1.25, this.audioContext.currentTime);
+                    osc3.frequency.setValueAtTime(sound.frequency * 1.5, this.audioContext.currentTime);
+                    osc2.start();
+                    osc3.start();
+                    osc2.stop(this.audioContext.currentTime + sound.duration);
+                    osc3.stop(this.audioContext.currentTime + sound.duration);
+                }
+                
+                oscillator.start();
+                oscillator.stop(this.audioContext.currentTime + sound.duration);
+            }
+            
+            playBGM() {
+                if (!this.enabled || this.bgmStopped) return;
+                
+                // 简单的背景音乐循环
+                const playNote = (frequency, time) => {
+                    const osc = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    
+                    osc.connect(gain);
+                    gain.connect(this.audioContext.destination);
+                    
+                    osc.frequency.setValueAtTime(frequency, time);
+                    gain.gain.setValueAtTime(0.1, time);
+                    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+                    
+                    osc.start(time);
+                    osc.stop(time + 0.5);
+                };
+                
+                // 简单的低音节奏
+                const bassline = [110, 110, 130, 110, 146, 110, 130, 110];
+                let currentTime = this.audioContext.currentTime;
+                
+                bassline.forEach((note, i) => {
+                    playNote(note, currentTime + i * 0.25);
+                });
+                
+                // 每2秒重复
+                this.bgmTimeout = setTimeout(() => this.playBGM(), 2000);
+            }
+            
+            stopBGM() {
+                this.bgmStopped = true;
+                if (this.bgmTimeout) {
+                    clearTimeout(this.bgmTimeout);
+                }
+            }
+        }
+        
+        // 粒子效果类
+        class Particle {
+            constructor(x, y, vx, vy, color, size, lifetime) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.size = size;
+                this.lifetime = lifetime;
+                this.age = 0;
+            }
+            
+            update(deltaTime) {
+                this.x += this.vx * deltaTime;
+                this.y += this.vy * deltaTime;
+                this.vy += 500 * deltaTime; // 重力
+                this.age += deltaTime;
+                return this.age < this.lifetime;
+            }
+            
+            draw(ctx) {
+                const alpha = 1 - (this.age / this.lifetime);
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        // 特效管理器
+        class EffectManager {
+            constructor() {
+                this.particles = [];
+                this.shockwaves = [];
+                this.lightnings = [];
+                this.afterimages = [];
+            }
+            
+            update(deltaTime) {
+                this.particles = this.particles.filter(p => p.update(deltaTime));
+                this.shockwaves = this.shockwaves.filter(s => s.update(deltaTime));
+                this.lightnings = this.lightnings.filter(l => l.update(deltaTime));
+                this.afterimages = this.afterimages.filter(a => a.update(deltaTime));
+            }
+            
+            draw(ctx) {
+                // 绘制残影（最底层）
+                this.afterimages.forEach(a => a.draw(ctx));
+                
+                // 绘制冲击波
+                this.shockwaves.forEach(s => s.draw(ctx));
+                
+                // 绘制粒子
+                this.particles.forEach(p => p.draw(ctx));
+                
+                // 绘制闪电（最顶层）
+                this.lightnings.forEach(l => l.draw(ctx));
+            }
+            
+            createHitEffect(x, y, direction) {
+                for (let i = 0; i < 15; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 100 + Math.random() * 200;
+                    this.particles.push(new Particle(
+                        x + Math.random() * 20 - 10,
+                        y + Math.random() * 20 - 10,
+                        Math.cos(angle) * speed * direction,
+                        Math.sin(angle) * speed - 100,
+                        `hsl(${Math.random() * 60}, 100%, 50%)`,
+                        3 + Math.random() * 5,
+                        0.3 + Math.random() * 0.3
+                    ));
+                }
+            }
+            
+            createSpecialEffect(x, y) {
+                for (let i = 0; i < 30; i++) {
+                    const angle = (i / 30) * Math.PI * 2;
+                    const speed = 200 + Math.random() * 100;
+                    this.particles.push(new Particle(
+                        x,
+                        y,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        `hsl(${200 + Math.random() * 160}, 100%, 50%)`,
+                        5 + Math.random() * 5,
+                        0.5 + Math.random() * 0.5
+                    ));
+                }
+            }
+            
+            createShockwave(x, y, color) {
+                this.shockwaves.push(new Shockwave(x, y, color));
+            }
+            
+            createLightning(x1, y1, x2, y2) {
+                // 限制闪电数量
+                if (this.lightnings.length < 3) {
+                    this.lightnings.push(new Lightning(x1, y1, x2, y2));
+                }
+            }
+            
+            createAfterimage(player) {
+                // 限制残影数量
+                if (this.afterimages.length < 10) {
+                    this.afterimages.push(new Afterimage(player));
+                }
+            }
+        }
+        
+        // 冲击波效果
+        class Shockwave {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.radius = 0;
+                this.maxRadius = 150;
+                this.color = color;
+                this.lifetime = 0.5;
+                this.age = 0;
+            }
+            
+            update(deltaTime) {
+                this.age += deltaTime;
+                this.radius = (this.age / this.lifetime) * this.maxRadius;
+                return this.age < this.lifetime;
+            }
+            
+            draw(ctx) {
+                const alpha = 1 - (this.age / this.lifetime);
+                ctx.save();
+                ctx.globalAlpha = alpha * 0.6;
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 3;
+                
+                // 绘制多个同心圆
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius - i * 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        // 闪电效果
+        class Lightning {
+            constructor(x1, y1, x2, y2) {
+                this.x1 = x1;
+                this.y1 = y1;
+                this.x2 = x2;
+                this.y2 = y2;
+                this.lifetime = 0.2;
+                this.age = 0;
+                this.segments = this.generateSegments();
+            }
+            
+            generateSegments() {
+                const segments = [];
+                const steps = 10;
+                const dx = (this.x2 - this.x1) / steps;
+                const dy = (this.y2 - this.y1) / steps;
+                
+                let x = this.x1;
+                let y = this.y1;
+                segments.push({x, y});
+                
+                for (let i = 1; i < steps; i++) {
+                    x += dx + (Math.random() - 0.5) * 30;
+                    y += dy + (Math.random() - 0.5) * 30;
+                    segments.push({x, y});
+                }
+                segments.push({x: this.x2, y: this.y2});
+                
+                return segments;
+            }
+            
+            update(deltaTime) {
+                this.age += deltaTime;
+                return this.age < this.lifetime;
+            }
+            
+            draw(ctx) {
+                const alpha = 1 - (this.age / this.lifetime);
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#00ffff';
+                
+                ctx.beginPath();
+                ctx.moveTo(this.segments[0].x, this.segments[0].y);
+                
+                for (let i = 1; i < this.segments.length; i++) {
+                    ctx.lineTo(this.segments[i].x, this.segments[i].y);
+                }
+                
+                ctx.stroke();
+                
+                // 再画一条细线增加亮度
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = '#00ffff';
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+        }
+        
+        // 残影效果
+        class Afterimage {
+            constructor(player) {
+                this.x = player.x;
+                this.y = player.y;
+                this.color = player.color;
+                this.state = player.state;
+                this.facing = player.facing;
+                this.lifetime = 0.3;
+                this.age = 0;
+                this.player = player;
+            }
+            
+            update(deltaTime) {
+                this.age += deltaTime;
+                return this.age < this.lifetime;
+            }
+            
+            draw(ctx) {
+                const alpha = (1 - (this.age / this.lifetime)) * 0.3;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                
+                // 复制玩家的绘制逻辑
+                ctx.translate(this.x + this.player.width / 2, this.y + this.player.height / 2);
+                ctx.scale(this.facing, 1);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                
+                // 根据保存的状态绘制
+                if (this.state === 'special') {
+                    const rotation = 0.5;
+                    ctx.rotate(rotation);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                    for (let i = 0; i < 4; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        const angle = (i / 4) * Math.PI * 2;
+                        ctx.lineTo(Math.cos(angle) * 30, Math.sin(angle) * 30);
+                        ctx.stroke();
+                    }
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        // 火柴人类
+        class StickMan {
+            constructor(x, y, color, controls) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.controls = controls;
+                this.vx = 0;
+                this.vy = 0;
+                this.width = 30;
+                this.height = 80;
+                this.health = 100;
+                this.maxHealth = 100;
+                this.facing = 1;
+                this.state = 'idle';
+                this.animationTime = 0;
+                this.combo = 0;
+                this.lastHitTime = 0;
+                this.invulnerable = false;
+                this.specialCooldown = 0;
+                this.onGround = false;
+                this.lastAfterimageTime = 0;
+                this.specialHitTimer = null;
+            }
+            
+            update(deltaTime, keys, opponent, effectManager, soundManager) {
+                // 更新动画时间
+                this.animationTime += deltaTime;
+                
+                // 特殊技能时创建残影
+                if (this.state === 'special' && this.animationTime - this.lastAfterimageTime > 0.05) {
+                    effectManager.createAfterimage(this);
+                    this.lastAfterimageTime = this.animationTime;
+                }
+                
+                // 重力
+                if (!this.onGround) {
+                    this.vy += 1500 * deltaTime;
+                }
+                
+                // 检查地面
+                if (this.y + this.height >= canvas.height - 50) {
+                    this.y = canvas.height - 50 - this.height;
+                    this.vy = 0;
+                    this.onGround = true;
+                } else {
+                    this.onGround = false;
+                }
+                
+                // 移动控制
+                if (this.state === 'idle' || this.state === 'walking') {
+                    if (keys[this.controls.left]) {
+                        this.vx = -300;
+                        this.facing = -1;
+                        this.state = 'walking';
+                    } else if (keys[this.controls.right]) {
+                        this.vx = 300;
+                        this.facing = 1;
+                        this.state = 'walking';
+                    } else {
+                        this.vx *= 0.8;
+                        if (Math.abs(this.vx) < 10) {
+                            this.vx = 0;
+                            this.state = 'idle';
+                        }
+                    }
+                    
+                    // 跳跃
+                    if (keys[this.controls.up] && this.onGround) {
+                        this.vy = -600;
+                        this.onGround = false;
+                    }
+                }
+                
+                // 攻击动作
+                if (this.state === 'idle' || this.state === 'walking') {
+                    if (keys[this.controls.punch]) {
+                        this.state = 'punching';
+                        this.animationTime = 0;
+                        soundManager.playSound('punch');
+                        this.checkHit(opponent, 20, effectManager, false, soundManager);
+                    } else if (keys[this.controls.kick]) {
+                        this.state = 'kicking';
+                        this.animationTime = 0;
+                        soundManager.playSound('kick');
+                        this.checkHit(opponent, 30, effectManager, false, soundManager);
+                    } else if (keys[this.controls.special] && this.specialCooldown <= 0) {
+                        this.state = 'special';
+                        this.animationTime = 0;
+                        this.specialCooldown = 3;
+                        this.specialHitTimer = setTimeout(() => {
+                            if (this.state === 'special') {
+                                this.checkHit(opponent, 50, effectManager, true, soundManager);
+                            }
+                        }, 200);
+                    }
+                }
+                
+                // 动作结束
+                if ((this.state === 'punching' || this.state === 'kicking') && this.animationTime > 0.3) {
+                    this.state = 'idle';
+                }
+                if (this.state === 'special' && this.animationTime > 0.8) {
+                    this.state = 'idle';
+                }
+                
+                // 更新位置
+                this.x += this.vx * deltaTime;
+                this.y += this.vy * deltaTime;
+                
+                // 边界限制
+                this.x = Math.max(0, Math.min(canvas.width - this.width, this.x));
+                
+                // 更新冷却
+                this.specialCooldown = Math.max(0, this.specialCooldown - deltaTime);
+                
+                // 连击计时
+                if (Date.now() - this.lastHitTime > 2000) {
+                    this.combo = 0;
+                }
+            }
+            
+            checkHit(opponent, damage, effectManager, isSpecial = false, soundManager) {
+                const distance = Math.abs(this.x - opponent.x);
+                const range = isSpecial ? 100 : 60;
+                
+                if (distance < range && !opponent.invulnerable) {
+                    opponent.takeDamage(damage);
+                    this.combo++;
+                    this.lastHitTime = Date.now();
+                    
+                    // 击退效果
+                    opponent.vx = this.facing * 300;
+                    opponent.vy = -200;
+                    
+                    // 创建特效
+                    const hitX = (this.x + opponent.x) / 2 + this.width / 2;
+                    const hitY = opponent.y + opponent.height / 2;
+                    
+                    if (isSpecial) {
+                        effectManager.createSpecialEffect(hitX, hitY);
+                        effectManager.createShockwave(hitX, hitY, this.color);
+                        // 只在10%的概率创建闪电效果
+                        if (Math.random() < 0.1) {
+                            effectManager.createLightning(this.x + this.width/2, this.y, opponent.x + opponent.width/2, opponent.y);
+                        }
+                        soundManager.playSound('special');
+                    } else {
+                        effectManager.createHitEffect(hitX, hitY, this.facing);
+                        soundManager.playSound('hit');
+                    }
+                    
+                    // 显示连击
+                    if (this.combo > 1) {
+                        const comboDisplay = document.getElementById('comboDisplay');
+                        comboDisplay.textContent = `COMBO x${this.combo}`;
+                        comboDisplay.style.opacity = '1';
+                        soundManager.playSound('combo');
+                        setTimeout(() => {
+                            comboDisplay.style.opacity = '0';
+                        }, 1000);
+                    }
+                }
+            }
+            
+            takeDamage(damage) {
+                if (!this.invulnerable) {
+                    this.health = Math.max(0, this.health - damage);
+                    this.invulnerable = true;
+                    
+                    // 被击时中断特殊技
+                    if (this.state === 'special') {
+                        this.state = 'idle';
+                        if (this.specialHitTimer) {
+                            clearTimeout(this.specialHitTimer);
+                            this.specialHitTimer = null;
+                        }
+                    }
+                    
+                    setTimeout(() => {
+                        this.invulnerable = false;
+                    }, 500);
+                }
+            }
+            
+            draw(ctx) {
+                ctx.save();
+                
+                // 无敌闪烁效果
+                if (this.invulnerable && Math.floor(this.animationTime * 10) % 2 === 0) {
+                    ctx.globalAlpha = 0.5;
+                }
+                
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                ctx.scale(this.facing, 1);
+                
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                
+                // 根据状态绘制不同姿势
+                if (this.state === 'idle' || this.state === 'walking') {
+                    this.drawIdle(ctx);
+                } else if (this.state === 'punching') {
+                    this.drawPunch(ctx);
+                } else if (this.state === 'kicking') {
+                    this.drawKick(ctx);
+                } else if (this.state === 'special') {
+                    this.drawSpecial(ctx);
+                }
+                
+                ctx.restore();
+            }
+            
+            drawIdle(ctx) {
+                const wobble = Math.sin(this.animationTime * 2) * 2;
+                
+                // 头
+                ctx.beginPath();
+                ctx.arc(0, -30 + wobble, 12, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 身体
+                ctx.beginPath();
+                ctx.moveTo(0, -18 + wobble);
+                ctx.lineTo(0, 10);
+                ctx.stroke();
+                
+                // 手臂
+                ctx.beginPath();
+                ctx.moveTo(0, -10 + wobble);
+                ctx.lineTo(-15, 5);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(0, -10 + wobble);
+                ctx.lineTo(15, 5);
+                ctx.stroke();
+                
+                // 腿
+                const legSpread = this.state === 'walking' ? Math.sin(this.animationTime * 10) * 10 : 0;
+                ctx.beginPath();
+                ctx.moveTo(0, 10);
+                ctx.lineTo(-10 + legSpread, 35);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(0, 10);
+                ctx.lineTo(10 - legSpread, 35);
+                ctx.stroke();
+            }
+            
+            drawPunch(ctx) {
+                // 头
+                ctx.beginPath();
+                ctx.arc(0, -30, 12, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 身体
+                ctx.beginPath();
+                ctx.moveTo(0, -18);
+                ctx.lineTo(0, 10);
+                ctx.stroke();
+                
+                // 出拳手臂
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(25, -10);
+                ctx.stroke();
+                
+                // 另一只手臂
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(-10, 5);
+                ctx.stroke();
+                
+                // 腿
+                ctx.beginPath();
+                ctx.moveTo(0, 10);
+                ctx.lineTo(-15, 35);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(0, 10);
+                ctx.lineTo(5, 35);
+                ctx.stroke();
+            }
+            
+            drawKick(ctx) {
+                // 头
+                ctx.beginPath();
+                ctx.arc(-5, -30, 12, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 身体（倾斜）
+                ctx.beginPath();
+                ctx.moveTo(-5, -18);
+                ctx.lineTo(-10, 10);
+                ctx.stroke();
+                
+                // 手臂
+                ctx.beginPath();
+                ctx.moveTo(-7, -10);
+                ctx.lineTo(-20, 0);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(-7, -10);
+                ctx.lineTo(5, -5);
+                ctx.stroke();
+                
+                // 踢腿
+                ctx.beginPath();
+                ctx.moveTo(-10, 10);
+                ctx.lineTo(20, 0);
+                ctx.stroke();
+                
+                // 支撑腿
+                ctx.beginPath();
+                ctx.moveTo(-10, 10);
+                ctx.lineTo(-15, 35);
+                ctx.stroke();
+            }
+            
+            drawSpecial(ctx) {
+                const rotation = this.animationTime * 10;
+                ctx.rotate(rotation);
+                
+                // 旋转的身体
+                ctx.beginPath();
+                ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 旋转的四肢
+                for (let i = 0; i < 4; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    const angle = (i / 4) * Math.PI * 2;
+                    ctx.lineTo(Math.cos(angle) * 30, Math.sin(angle) * 30);
+                    ctx.stroke();
+                }
+                
+                // 能量环
+                ctx.strokeStyle = `hsl(${rotation * 50}, 100%, 50%)`;
+                ctx.beginPath();
+                ctx.arc(0, 0, 40, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        
+        // 游戏主循环
+        class Game {
+            constructor() {
+                this.player1 = new StickMan(200, 300, '#ff3333', {
+                    left: 'a',
+                    right: 'd',
+                    up: 'w',
+                    down: 's',
+                    punch: 'g',
+                    kick: 'h',
+                    special: 'j'
+                });
+                
+                this.player2 = new StickMan(1000, 300, '#3333ff', {
+                    left: 'ArrowLeft',
+                    right: 'ArrowRight',
+                    up: 'ArrowUp',
+                    down: 'ArrowDown',
+                    punch: '1',
+                    kick: '2',
+                    special: '3'
+                });
+                
+                this.effectManager = new EffectManager();
+                this.soundManager = new SoundManager();
+                this.keys = {};
+                this.lastTime = performance.now();
+                this.gameOver = false;
+                
+                this.setupInput();
+                this.gameLoop();
+                
+                // 启动背景音乐
+                setTimeout(() => {
+                    this.soundManager.playBGM();
+                }, 1000);
+            }
+            
+            setupInput() {
+                window.addEventListener('keydown', (e) => {
+                    this.keys[e.key] = true;
+                    e.preventDefault();
+                    
+                    // 第一次按键时启动音频上下文
+                    if (this.soundManager.audioContext.state === 'suspended') {
+                        this.soundManager.audioContext.resume();
+                    }
+                });
+                
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.key] = false;
+                    e.preventDefault();
+                });
+                
+                document.getElementById('restartBtn').addEventListener('click', () => {
+                    this.restart();
+                });
+            }
+            
+            restart() {
+                this.player1.health = this.player1.maxHealth;
+                this.player2.health = this.player2.maxHealth;
+                this.player1.x = 200;
+                this.player2.x = 1000;
+                this.player1.y = 300;
+                this.player2.y = 300;
+                this.player1.combo = 0;
+                this.player2.combo = 0;
+                this.gameOver = false;
+                document.getElementById('winScreen').style.display = 'none';
+                
+                // 重启背景音乐
+                this.soundManager.bgmStopped = false;
+                this.soundManager.playBGM();
+            }
+            
+            update(deltaTime) {
+                if (this.gameOver) return;
+                
+                this.player1.update(deltaTime, this.keys, this.player2, this.effectManager, this.soundManager);
+                this.player2.update(deltaTime, this.keys, this.player1, this.effectManager, this.soundManager);
+                this.effectManager.update(deltaTime);
+                
+                // 更新血条
+                document.getElementById('player1Health').style.width = 
+                    `${(this.player1.health / this.player1.maxHealth) * 100}%`;
+                document.getElementById('player2Health').style.width = 
+                    `${(this.player2.health / this.player2.maxHealth) * 100}%`;
+                
+                // 检查游戏结束
+                if (this.player1.health <= 0 || this.player2.health <= 0) {
+                    this.gameOver = true;
+                    const winner = this.player1.health > 0 ? '玩家 1' : '玩家 2';
+                    document.getElementById('winText').textContent = `${winner} 胜利！`;
+                    document.getElementById('winScreen').style.display = 'flex';
+                    this.soundManager.playSound('victory');
+                    this.soundManager.stopBGM();
+                }
+            }
+            
+            draw() {
+                // 清空画布
+                ctx.fillStyle = 'rgba(26, 26, 42, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 绘制地面
+                ctx.fillStyle = '#333';
+                ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+                
+                // 绘制地面纹理
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < canvas.width; i += 50) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, canvas.height - 50);
+                    ctx.lineTo(i + 25, canvas.height);
+                    ctx.stroke();
+                }
+                
+                // 绘制玩家
+                this.player1.draw(ctx);
+                this.player2.draw(ctx);
+                
+                // 绘制特效
+                this.effectManager.draw(ctx);
+            }
+            
+            gameLoop() {
+                const currentTime = performance.now();
+                const deltaTime = (currentTime - this.lastTime) / 1000;
+                this.lastTime = currentTime;
+                
+                this.update(deltaTime);
+                this.draw();
+                
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+        
+        // 启动游戏
+        const game = new Game();
+    </script>
+</body>
+</html>
