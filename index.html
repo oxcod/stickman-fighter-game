@@ -567,6 +567,11 @@
             playSound(type) {
                 if (!this.enabled || !this.initialized) return;
                 
+                // Resume AudioContext if suspended (required by modern browsers)
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                
                 try {
                     const osc = this.audioContext.createOscillator();
                     const gain = this.audioContext.createGain();
@@ -666,6 +671,11 @@
             
             playBGM() {
                 if (!this.enabled || !this.bgmBuffer) return;
+                
+                // Resume AudioContext if suspended (required by modern browsers)
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
                 
                 this.stopBGM();
                 

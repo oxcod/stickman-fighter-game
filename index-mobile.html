@@ -398,6 +398,11 @@
             playSound(type) {
                 if (!this.enabled || !this.initialized) return;
                 
+                // Resume AudioContext if suspended (required by modern browsers)
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                
                 try {
                     const osc = this.audioContext.createOscillator();
                     const gain = this.audioContext.createGain();
@@ -589,6 +594,7 @@
                     } else if (input.special && (!this.isAI || this.attackCooldown <= 0)) {
                         this.state = 'special';
                         this.animTime = 0;
+                        soundManager.playSound('special');
                         if (this.isAI) this.attackCooldown = 3;
                         setTimeout(() => {
                             if (this.state === 'special') {
