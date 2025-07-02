@@ -91,15 +91,16 @@
         
         #controls {
             position: absolute;
-            bottom: 20px;
+            top: 120px;
             left: 50%;
             transform: translateX(-50%);
             color: white;
             text-align: center;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 12px;
+            opacity: 0.8;
         }
         
         .controlGroup {
@@ -169,10 +170,23 @@
             font-size: 72px;
             color: #ffff00;
             text-shadow: 4px 4px 8px rgba(255, 0, 0, 0.8);
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             animation: winTextAnim 2s ease-out forwards;
             transform: scale(0);
             filter: blur(20px);
+        }
+        
+        #restartHint {
+            font-size: 24px;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: fadeIn 1s ease-out 2s forwards;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
         }
         
         @keyframes winTextAnim {
@@ -297,6 +311,12 @@
                 
             // Update controls
             updateControlsText();
+            
+            // Update restart hint
+            const restartHint = document.getElementById('restartHint');
+            if (restartHint && restartHint.hasAttribute(`data-${currentLang}`)) {
+                restartHint.textContent = restartHint.getAttribute(`data-${currentLang}`);
+            }
         }
         
         function updateControlsText() {
@@ -327,7 +347,11 @@
                 this.enabled = true;
                 this.audioContext = null;
                 this.initialized = false;
-                this.volume = 0.3;
+                this.soundVolume = 0.2;
+                this.bgmVolume = 0.1;
+                this.bgm = null;
+                this.bgmGain = null;
+                this.bgmBuffer = null;
             }
             
             init() {
@@ -357,7 +381,7 @@
                     switch(type) {
                         case 'punch':
                             osc.frequency.setValueAtTime(150, currentTime);
-                            gain.gain.setValueAtTime(this.volume, currentTime);
+                            gain.gain.setValueAtTime(this.soundVolume, currentTime);
                             gain.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.1);
                             osc.start(currentTime);
                             osc.stop(currentTime + 0.1);
@@ -365,7 +389,7 @@
                             
                         case 'kick':
                             osc.frequency.setValueAtTime(100, currentTime);
-                            gain.gain.setValueAtTime(this.volume, currentTime);
+                            gain.gain.setValueAtTime(this.soundVolume, currentTime);
                             gain.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.15);
                             osc.start(currentTime);
                             osc.stop(currentTime + 0.15);
@@ -374,7 +398,7 @@
                         case 'special':
                             osc.frequency.setValueAtTime(200, currentTime);
                             osc.frequency.linearRampToValueAtTime(800, currentTime + 0.3);
-                            gain.gain.setValueAtTime(this.volume * 0.5, currentTime);
+                            gain.gain.setValueAtTime(this.soundVolume * 0.5, currentTime);
                             gain.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.3);
                             osc.start(currentTime);
                             osc.stop(currentTime + 0.3);
@@ -383,7 +407,7 @@
                         case 'hit':
                             osc.type = 'square';
                             osc.frequency.setValueAtTime(200, currentTime);
-                            gain.gain.setValueAtTime(this.volume * 0.5, currentTime);
+                            gain.gain.setValueAtTime(this.soundVolume * 0.5, currentTime);
                             gain.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.05);
                             osc.start(currentTime);
                             osc.stop(currentTime + 0.05);
@@ -392,7 +416,7 @@
                         case 'combo':
                             osc.frequency.setValueAtTime(600, currentTime);
                             osc.frequency.linearRampToValueAtTime(800, currentTime + 0.1);
-                            gain.gain.setValueAtTime(this.volume * 0.4, currentTime);
+                            gain.gain.setValueAtTime(this.soundVolume * 0.4, currentTime);
                             gain.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.1);
                             osc.start(currentTime);
                             osc.stop(currentTime + 0.1);
@@ -405,7 +429,7 @@
                                 o.connect(g);
                                 g.connect(this.audioContext.destination);
                                 o.frequency.setValueAtTime(400 * (1 + i * 0.25), currentTime);
-                                g.gain.setValueAtTime(this.volume * 0.3, currentTime);
+                                g.gain.setValueAtTime(this.soundVolume * 0.3, currentTime);
                                 g.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.5);
                                 o.start(currentTime);
                                 o.stop(currentTime + 0.5);
@@ -419,7 +443,53 @@
             
             toggle() {
                 this.enabled = !this.enabled;
+                if (this.enabled && this.bgmBuffer) {
+                    this.playBGM();
+                } else {
+                    this.stopBGM();
+                }
                 return this.enabled;
+            }
+            
+            loadBGM(url) {
+                if (!this.initialized) return;
+                
+                fetch(url)
+                    .then(response => response.arrayBuffer())
+                    .then(data => this.audioContext.decodeAudioData(data))
+                    .then(buffer => {
+                        this.bgmBuffer = buffer;
+                        if (this.enabled) {
+                            this.playBGM();
+                        }
+                    })
+                    .catch(e => console.error('Failed to load BGM:', e));
+            }
+            
+            playBGM() {
+                if (!this.enabled || !this.bgmBuffer) return;
+                
+                this.stopBGM();
+                
+                this.bgm = this.audioContext.createBufferSource();
+                this.bgmGain = this.audioContext.createGain();
+                
+                this.bgm.buffer = this.bgmBuffer;
+                this.bgm.loop = true;
+                
+                this.bgm.connect(this.bgmGain);
+                this.bgmGain.connect(this.audioContext.destination);
+                
+                this.bgmGain.gain.setValueAtTime(this.bgmVolume, this.audioContext.currentTime);
+                
+                this.bgm.start();
+            }
+            
+            stopBGM() {
+                if (this.bgm) {
+                    this.bgm.stop();
+                    this.bgm = null;
+                }
             }
         }
         
@@ -941,15 +1011,34 @@
                 
                 this.setupInput();
                 this.gameLoop();
+                
+                // 注释：请将 'bgm.mp3' 替换为你的背景音乐文件路径
+                // 等待一小段时间后加载背景音乐
+                /*
+                setTimeout(() => {
+                    if (this.soundManager.initialized) {
+                        this.soundManager.loadBGM('bgm.mp3');
+                    }
+                }, 1000);
+                */
             }
             
             setupInput() {
                 window.addEventListener('keydown', (e) => {
+                    // 游戏结束时按回车重新开始
+                    if (this.gameOver && e.key === 'Enter') {
+                        this.restart();
+                        e.preventDefault();
+                        return;
+                    }
+                    
                     this.keys[e.key] = true;
                     e.preventDefault();
                     
                     if (!this.soundManager.initialized) {
                         this.soundManager.init();
+                        // 初始化后加载背景音乐
+                        // this.soundManager.loadBGM('bgm.mp3'); // 请替换为你的背景音乐文件
                     }
                 });
                 
