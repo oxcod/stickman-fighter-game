@@ -6,6 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <title>Stickman Fighter Mobile / 火柴人格斗大师手机版</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <style>
         * {
             touch-action: none;
@@ -381,6 +382,11 @@
                 this.enabled = true;
                 this.audioContext = null;
                 this.initialized = false;
+                this.soundVolume = 0.2;
+                this.bgmVolume = 0.1;
+                this.bgm = null;
+                this.bgmGain = null;
+                this.bgmBuffer = null;
             }
             
             init() {
@@ -443,8 +449,60 @@
                 }
             }
             
+            loadBGM(url) {
+                if (!this.initialized) return;
+                
+                fetch(url)
+                    .then(response => response.arrayBuffer())
+                    .then(data => this.audioContext.decodeAudioData(data))
+                    .then(buffer => {
+                        this.bgmBuffer = buffer;
+                        if (this.enabled) {
+                            this.playBGM();
+                        }
+                    })
+                    .catch(e => console.error('Failed to load BGM:', e));
+            }
+            
+            playBGM() {
+                if (!this.enabled || !this.bgmBuffer) return;
+                
+                // Resume AudioContext if suspended (required by modern browsers)
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                
+                this.stopBGM();
+                
+                this.bgm = this.audioContext.createBufferSource();
+                this.bgmGain = this.audioContext.createGain();
+                
+                this.bgm.buffer = this.bgmBuffer;
+                this.bgm.loop = true;
+                
+                this.bgm.connect(this.bgmGain);
+                this.bgmGain.connect(this.audioContext.destination);
+                
+                this.bgmGain.gain.setValueAtTime(this.bgmVolume, this.audioContext.currentTime);
+                
+                this.bgm.start();
+            }
+            
+            stopBGM() {
+                if (this.bgm) {
+                    this.bgm.stop();
+                    this.bgm = null;
+                    this.bgmGain = null;
+                }
+            }
+            
             toggle() {
                 this.enabled = !this.enabled;
+                if (this.enabled && this.bgmBuffer) {
+                    this.playBGM();
+                } else {
+                    this.stopBGM();
+                }
                 return this.enabled;
             }
         }
@@ -1002,6 +1060,11 @@
             startGame() {
                 this.gameStarted = true;
                 this.soundManager.init();
+                
+                // Load background music
+                setTimeout(() => {
+                    this.soundManager.loadBGM('114_full_fight-song_0161_preview.mp3');
+                }, 100);
                 
                 // Hide start screen
                 document.getElementById('startScreen').style.display = 'none';
